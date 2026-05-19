@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerenciador de Produtos - Sistemas Distribuídos</title>
+    <style>
+        :root {
+            --primary-color: #4f46e5;
+            --secondary-color: #10b981;
+            --danger-color: #ef4444;
+            --bg-color: #f3f4f6;
+            --card-bg: #ffffff;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+        }
+
+        h1 {
+            color: #1f2937;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        form {
+            display: grid;
+            grid-template-columns: 1fr 1fr auto;
+            gap: 10px;
+            align-items: end;
+        }
+
+        @media (max-width: 600px) {
+            form { grid-template-columns: 1fr; }
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        label {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #4b5563;
+        }
+
+        input {
+            padding: 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 1rem;
+        }
+
+        button {
+            cursor: pointer;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            transition: opacity 0.2s;
+        }
+
+        button:hover { opacity: 0.9; }
+
+        .btn-save { background-color: var(--primary-color); color: white; }
+        .btn-edit { background-color: var(--secondary-color); color: white; padding: 5px 10px; font-size: 0.8rem; }
+        .btn-delete { background-color: var(--danger-color); color: white; padding: 5px 10px; font-size: 0.8rem; }
+        .btn-cancel { background-color: #9ca3af; color: white; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 12px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        th {
+            background-color: #f9fafb;
+            color: #374151;
+            font-weight: 600;
+        }
+
+        tr:hover { background-color: #f9fafb; }
+
+        .actions {
+            display: flex;
+            gap: 5px;
+        }
+
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>📦 Gerenciador de Produtos</h1>
+
+    <!-- Formulário -->
+    <div class="card">
+        <form id="productForm">
+            <input type="hidden" id="productId">
+            <div class="form-group">
+                <label for="name">Nome do Produto</label>
+                <input type="text" id="name" placeholder="Ex: Teclado Mecânico" required>
+            </div>
+            <div class="form-group">
+                <label for="price">Preço (R$)</label>
+                <input type="number" id="price" step="0.01" placeholder="0.00" required>
+            </div>
+            <div class="actions">
+                <button type="submit" id="btnSubmit" class="btn-save">Salvar</button>
+                <button type="button" id="btnCancel" class="btn-cancel hidden" onclick="resetForm()">Cancelar</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Listagem -->
+    <div class="card">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Nome</th>
+                    <th>Preço</th>
+                    <th>Ações</th>
+                </tr>
+            </thead>
+            <tbody id="productTableBody">
+                <!-- Dados carregados via JS -->
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    const API_URL = '/produtos';
+    const form = document.getElementById('productForm');
+    const tableBody = document.getElementById('productTableBody');
+    const btnSubmit = document.getElementById('btnSubmit');
+    const btnCancel = document.getElementById('btnCancel');
+
+    // Carregar produtos ao iniciar
+    document.addEventListener('DOMContentLoaded', fetchProducts);
+
+    async function fetchProducts() {
+        try {
+            const response = await fetch(API_URL);
+            const products = await response.json();
+            renderTable(products);
+        } catch (error) {
+            console.error('Erro ao buscar produtos:', error);
+            alert('Erro ao carregar lista de produtos.');
+        }
+    }
+
+    function renderTable(products) {
+        tableBody.innerHTML = '';
+        products.forEach(p => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${p.id}</td>
+                <td>${p.name}</td>
+                <td>R$ ${parseFloat(p.price).toFixed(2)}</td>
+                <td class="actions">
+                    <button class="btn-edit" onclick="editProduct('${p.id}', '${p.name}', ${p.price})">Editar</button>
+                    <button class="btn-delete" onclick="deleteProduct('${p.id}')">Remover</button>
+                </td>
+            `;
+            tableBody.appendChild(tr);
+        });
+    }
+
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const id = document.getElementById('productId').value;
+        const name = document.getElementById('name').value;
+        const price = document.getElementById('price').value;
+
+        const productData = { name, price: parseFloat(price) };
+
+        try {
+            let response;
+            if (id) {
+                // Atualizar
+                response = await fetch(`${API_URL}/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(productData)
+                });
+            } else {
+                // Criar
+                response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(productData)
+                });
+            }
+
+            if (response.ok) {
+                resetForm();
+                fetchProducts();
+            } else {
+                alert('Erro ao salvar produto.');
+            }
+        } catch (error) {
+            console.error('Erro:', error);
+        }
+    });
+
+    async function deleteProduct(id) {
+        if (!confirm('Tem certeza que deseja remover este produto?')) return;
+        
+        try {
+            const response = await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
+            if (response.ok) {
+                fetchProducts();
+            } else {
+                alert('Erro ao deletar produto.');
+            }
+        } catch (error) {
+            console.error('Erro:', error);
+        }
+    }
+
+    function editProduct(id, name, price) {
+        document.getElementById('productId').value = id;
+        document.getElementById('name').value = name;
+        document.getElementById('price').value = price;
+        
+        btnSubmit.textContent = 'Atualizar';
+        btnCancel.classList.remove('hidden');
+    }
+
+    function resetForm() {
+        form.reset();
+        document.getElementById('productId').value = '';
+        btnSubmit.textContent = 'Salvar';
+        btnCancel.classList.add('hidden');
+    }
+</script>
+
+</body>
+</html>
