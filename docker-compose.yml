@@ -1,0 +1,11 @@
+services:
+  app:
+    build: .
+    image: crud-produtos:latest
+    container_name: crud-produtos
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: 3000
+      NODE_ENV: production
+    restart: unless-stopped
