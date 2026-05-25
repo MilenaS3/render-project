@@ -1,0 +1,5 @@
+# Dependências do Node
+node_modules/
+
+# Lock file do npm
+package-lock.json
